@@ -3,18 +3,25 @@ import UsersController from '../controllers/UsersController';
 import AuthController from '../controllers/AuthController';
 import FilesController from '../controllers/FilesController';
 
-const routes = {
-  'GET /status': AppController.getStatus,
-  'GET /stats': AppController.getStats,
-  'POST /users': UsersController.postNew,
-  'GET /connect': AuthController.getConnect,
-  'GET /disconnect': AuthController.getDisconnect,
-  'GET /users/me': UsersController.getMe,
-  'POST /files': FilesController.postUpload,
-  'GET /files/:id': FilesController.getShow,
-  'GET /files': FilesController.getIndex,
-  'PUT /files/:id/publish': FilesController.putPublish,
-  'PUT /files/:id/unpublish': FilesController.putUnpublish,
-  'GET /files/:id/data': FilesController.getFile,
+const express = require('express');
+
+const router = (app) => {
+  const paths = express.Router();
+  app.use(express.json());
+  app.use('/', paths);
+
+  paths.get('/status', ((request, response) => AppController.getStatus(request, response)));
+  paths.get('/stats', ((request, response) => AppController.getStats(request, response)));
+  paths.post('/users', ((request, response) => UsersController.postNew(request, response)));
+  paths.get('/connect', ((request, response) => AuthController.getConnect(request, response)));
+  paths.get('/disconnect', ((request, response) => AuthController.getDisconnect(request, response)));
+  paths.get('/users/me', ((request, response) => UsersController.getMe(request, response)));
+  paths.post('/files', ((request, response) => FilesController.postUpload(request, response)));
+  paths.get('/files/:id', ((request, response) => FilesController.getShow(request, response)));
+  paths.get('/files', ((request, response) => FilesController.getIndex(request, response)));
+  paths.put('/files/:id/publish', ((request, response) => FilesController.putPublish(request, response)));
+  paths.put('/files/:id/unpublish', ((request, response) => FilesController.putUnpublish(request, response)));
+  paths.get('/files/:id/data', ((request, response) => FilesController.getFile(request, response)));
 };
-export default routes;
+
+export default router;
