@@ -1,71 +1,116 @@
-// utils/db.mjs
-
-import MongoClient from 'mongodb';
-
-const host = process.env.DB_HOST || 'localhost';
-const port = process.env.DB_PORT || 27017;
-const database = process.env.DB_DATABASE || 'files_manager';
-const url = `mongodb://${host}:${port}/`;
+import { MongoClient, ObjectId } from 'mongodb';
+import sha1 from 'sha1';
 
 class DBClient {
   constructor() {
-    this.db = null;
-    this.connected = false;
-    MongoClient.connect(url, { useUnifiedTopology: true })
+    const dbHost = process.env.DB_HOST || 'localhost';
+    const dbPort = process.env.DB_PORT || 27017;
+    const dbDatabase = process.env.DB_DATABASE || 'files_manager';
+
+    this.isConnected = false; // Nueva propiedad para rastrear el estado de conexión
+
+    MongoClient.connect(`mongodb://${dbHost}:${dbPort}`)
       .then((client) => {
-        this.db = client.db(database);
-        this.connected = true;
-        (async () => {
-          try {
-            const collections = await this.db.listCollections().toArray();
-            const collectionNames = collections.map((col) => col.name);
-
-            if (!collectionNames.includes('users')) {
-              await this.db.createCollection('users');
-            }
-
-            if (!collectionNames.includes('files')) {
-              await this.db.createCollection('files');
-            }
-          } catch (err) {
-            console.error('Failed to create collections', err);
-          }
-        })();
+        this.client = client;
+        this.db = client.db(dbDatabase);
+        this.usersColl = this.db.collection('users');
+        this.filesColl = this.db.collection('files');
+        this.isConnected = true; // Marcar como conectado
       })
-      .catch((error) => {
-        console.log(error);
+      .catch((err) => {
+        console.error('Error connecting to MongoDB:', err);
       });
   }
 
   isAlive() {
-    return this.connected;
+    return this.isConnected; // Utilizar la nueva propiedad
   }
 
   async nbUsers() {
-    // Count number of documents in 'users' collection
-    return this.db.collection('users').countDocuments();
+    return this.usersColl.countDocuments({});
   }
 
-  async getUser(query) {
-    // Search for the user in the collection
-    console.log('QUERY IN DB.JS', query);
-    const user = await this.db.collection('users').findOne(query);
-    console.log('GET USER IN DB.JS', user);
-    return user;
+  async userByEmail(email) {
+    return this.usersColl.findOne({ email });
+  }
+
+  async userById(id) {
+    return this.usersColl.findOne({ _id: ObjectId(id.toString()) });
+  }
+
+  async userId(email) {
+    const userObject = await this.userByEmail(email);
+    return userObject ? userObject._id : null;
+  }
+
+  async addUser(email, password) {
+    return this.usersColl.insertOne({ email, password: sha1(password) });
+  }
+
+  async validCredentials(email, password) {
+    const matches = await this.usersColl.find({ email, password: sha1(password) }).toArray();
+    return !!matches.length;
   }
 
   async nbFiles() {
-    // Count number of documents in 'files' collection
-    return this.db.collection('files').countDocuments();
+    return this.filesColl.countDocuments({});
   }
 
-  async saveFile(fileData) {
-    // Insert a new document into the 'files' collection
-    const result = await this.db.collection('files').insertOne(fileData);
-    return { _id: result.insertedId, ...fileData };
+  async fileWithID(id) {
+    let _id;
+    try {
+      _id = ObjectId(id);
+    } catch (error) {
+      return null;
+    }
+    return this.filesColl.findOne({ _id });
+  }
+
+  async addFile(file) {
+    return this.filesColl.insertOne(file);
+  }
+
+  async findFiles(userId, parentId) {
+    const query = {};
+
+    try {
+      query.userId = ObjectId(userId);
+    } catch (error) {
+      return null;
+    }
+    if (parentId) {
+      try {
+        query.parentId = ObjectId(parentId);
+      } catch (error) {
+        return null;
+      }
+    }
+    return this.filesColl.find(query).toArray();
+  }
+
+  async findUserFile(userId, id) {
+    const query = {};
+
+    try {
+      query.userId = ObjectId(userId);
+      query._id = ObjectId(id);
+    } catch (error) {
+      return null;
+    }
+    return this.filesColl.findOne(query);
+  }
+
+  async setFilePublic(userId, id, isPublic) {
+    const filter = {};
+    try {
+      filter.userId = ObjectId(userId);
+      filter._id = ObjectId(id);
+    } catch (error) {
+      return null;
+    }
+    return this.filesColl.updateOne(filter, { $set: { isPublic } });
   }
 }
 
-// Create and export an instance of DBClient
 const dbClient = new DBClient();
 export default dbClient;
