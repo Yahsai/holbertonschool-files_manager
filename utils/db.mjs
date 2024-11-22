@@ -9,12 +9,11 @@ class DBClient {
 
     const url = `mongodb://${dbHost}:${dbPort}`;
     this.client = new MongoClient(url, { useUnifiedTopology: true });
-    this.isConnected = false; // Para rastrear el estado de conexión
 
+    // Inicializa la conexión a MongoDB
     this.client.connect()
       .then(() => {
         this.db = this.client.db(dbDatabase);
-        this.isConnected = true; // Conexión exitosa
       })
       .catch((error) => {
         console.error('Error connecting to MongoDB:', error);
@@ -22,8 +21,8 @@ class DBClient {
   }
 
   isAlive() {
-    // Verifica si está conectado
-    return this.isConnected && this.client.topology && this.client.topology.isConnected();
+    // Verifica que el cliente y su topología estén conectados
+    return this.client && this.client.topology && this.client.topology.isConnected();
   }
 
   async nbUsers() {
