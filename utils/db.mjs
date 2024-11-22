@@ -1,46 +1,71 @@
-import pkg from 'mongodb';
-import dotenv from 'dotenv';
+// utils/db.mjs
 
-dotenv.config();
+import MongoClient from 'mongodb';
 
-const { MongoClient } = pkg;
+const host = process.env.DB_HOST || 'localhost';
+const port = process.env.DB_PORT || 27017;
+const database = process.env.DB_DATABASE || 'files_manager';
+const url = `mongodb://${host}:${port}/`;
 
 class DBClient {
   constructor() {
-    const dbHost = process.env.DB_HOST || 'localhost';
-    const dbPort = process.env.DB_PORT || 27017;
-    const dbDatabase = process.env.DB_DATABASE || 'files_manager';
+    this.db = null;
+    this.connected = false;
+    MongoClient.connect(url, { useUnifiedTopology: true })
+      .then((client) => {
+        this.db = client.db(database);
+        this.connected = true;
+        (async () => {
+          try {
+            const collections = await this.db.listCollections().toArray();
+            const collectionNames = collections.map((col) => col.name);
 
-    const url = `mongodb://${dbHost}:${dbPort}`;
-    this.client = new MongoClient(url, { useUnifiedTopology: true });
+            if (!collectionNames.includes('users')) {
+              await this.db.createCollection('users');
+            }
 
-    this.client.connect()
-      .then(() => {
-        this.db = this.client.db(dbDatabase);
+            if (!collectionNames.includes('files')) {
+              await this.db.createCollection('files');
+            }
+          } catch (err) {
+            console.error('Failed to create collections', err);
+          }
+        })();
       })
       .catch((error) => {
-        console.error('Error connecting to MongoDB:', error);
+        console.log(error);
       });
   }
 
   isAlive() {
-    return this.client && this.client.topology && this.client.topology.isConnected();
+    return this.connected;
   }
 
   async nbUsers() {
-    if (!this.db) {
-      return 0;
-    }
-    return this.db.collection('users').countDocuments({});
+    // Count number of documents in 'users' collection
+    return this.db.collection('users').countDocuments();
+  }
+
+  async getUser(query) {
+    // Search for the user in the collection
+    console.log('QUERY IN DB.JS', query);
+    const user = await this.db.collection('users').findOne(query);
+    console.log('GET USER IN DB.JS', user);
+    return user;
   }
 
   async nbFiles() {
-    if (!this.db) {
-      return 0;
-    }
-    return this.db.collection('files').countDocuments({});
+    // Count number of documents in 'files' collection
+    return this.db.collection('files').countDocuments();
+  }
+
+  async saveFile(fileData) {
+    // Insert a new document into the 'files' collection
+    const result = await this.db.collection('files').insertOne(fileData);
+    return { _id: result.insertedId, ...fileData };
   }
 }
 
+// Create and export an instance of DBClient
 const dbClient = new DBClient();
 export default dbClient;
