@@ -1,6 +1,6 @@
-import dbClient from './utils/db';
+import dbClient from './utils/db.js';
 
-function waitConnection() {
+const waitConnection = () => {
   return new Promise((resolve, reject) => {
     let i = 0;
     const repeatFct = async () => {
@@ -17,7 +17,7 @@ function waitConnection() {
     };
     repeatFct();
   });
-}
+};
 
 (async () => {
   console.log(dbClient.isAlive());
