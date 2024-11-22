@@ -1,4 +1,8 @@
 import pkg from 'mongodb';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
 const { MongoClient } = pkg;
 
 class DBClient {
@@ -10,7 +14,6 @@ class DBClient {
     const url = `mongodb://${dbHost}:${dbPort}`;
     this.client = new MongoClient(url, { useUnifiedTopology: true });
 
-    // Inicializa la conexión a MongoDB
     this.client.connect()
       .then(() => {
         this.db = this.client.db(dbDatabase);
@@ -21,7 +24,6 @@ class DBClient {
   }
 
   isAlive() {
-    // Verifica que el cliente y su topología estén conectados
     return this.client && this.client.topology && this.client.topology.isConnected();
   }
 
